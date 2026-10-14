@@ -1,0 +1,65 @@
+# 3時間おきに公式告知を取得し、Webアプリと feeds.json を GitHub Pages に公開する。
+# 他の人のプルリクエストでは動かさない（schedule・main への push・手動実行のみ）。
+name: Update feeds and deploy
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 権限は最小限：リポジトリは読むだけ、Pages への公開だけ許可
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test parsers
+        run: npm test
+
+      # 前回の結果を取ってくる（取得に失敗した作品は前回の内容を残すため）
+      - name: Restore previous feeds
+        run: curl -fsSL "https://phakchy.github.io/game-daily-board/feeds.json" -o public/feeds.json || echo "前回の結果はまだありません"
+
+      - name: Fetch feeds
+        run: npm run feeds
+
+      - name: Build web app
+        run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

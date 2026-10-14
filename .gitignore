@@ -1,0 +1,6 @@
+node_modules
+dist
+src-tauri/target
+src-tauri/gen/schemas
+# 取得結果は GitHub Actions が毎回作り直す
+public/feeds.json
