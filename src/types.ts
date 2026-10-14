@@ -66,9 +66,40 @@ export interface StoryProgress {
   updatedAt: string;
 }
 
-/** 自分で記録するデータ（同期の対象） */
+/** 日課の区分。ゲームごとの枠と、ゲームに関係ない「自分の日課」 */
+export type GroupId = GameId | 'custom';
+
+/** 一覧に並べる枠（ゲーム、または「自分の日課」） */
+export interface GroupDef extends Omit<GameDef, 'id'> {
+  id: GroupId;
+}
+
+export type ResetKind = 'daily' | 'weekly';
+
+export interface TaskDef {
+  id: string;
+  group: GroupId;
+  name: string;
+  reset: ResetKind;
+}
+
+/** 育成中・欲しい・育成完了 */
+export type CharacterStatus = 'training' | 'wanted' | 'done';
+
+export interface Character {
+  id: string;
+  gameId: GameId;
+  name: string;
+  /** 「Lv90まで」など */
+  goal: string;
+  status: CharacterStatus;
+}
+
+/** 自分で記録するデータ（端末の中にだけ保存） */
 export interface UserData {
-  /** ゲームごとの「日課を完了した日」のキー（YYYY-MM-DD、リセット時刻基準） */
-  dailies: Partial<Record<GameId, string[]>>;
+  tasks: TaskDef[];
+  /** 日課ID → 完了した期間のキー（毎日: YYYY-MM-DD、毎週: W＋その週の月曜の日付） */
+  done: Record<string, string[]>;
   story: Partial<Record<GameId, StoryProgress>>;
+  characters: Character[];
 }

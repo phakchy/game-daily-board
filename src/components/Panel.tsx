@@ -1,63 +1,86 @@
-import type { GameDef, GameFeed, GameId, UserData } from '../types';
-import { currentBanners } from '../lib/feed';
-import { dayKey, remaining } from '../lib/time';
+import { useState } from 'react';
+import type { TaskDef, UserData } from '../types';
+import { GROUPS } from '../data/games';
+import { isTaskDone, overallRemaining, tasksOf } from '../lib/tasks';
 import { openMainWindow } from '../lib/desktop';
 import { GameIcon } from './GameCard';
 
 interface Props {
-  games: GameDef[];
-  feeds: GameFeed[];
   data: UserData;
   now: Date;
-  onToggle: (id: GameId, day: string) => void;
+  onToggle: (task: TaskDef) => void;
 }
 
-/** トレイアイコンから開く小さなパネル。今日の日課チェックに絞る */
-export function Panel({ games, feeds, data, now, onToggle }: Props) {
-  const isDone = (g: GameDef) => (data.dailies[g.id] ?? []).includes(dayKey(now, g.resetHour));
-  const doneCount = games.filter(isDone).length;
+/** トレイアイコンから開く小さなパネル。残っている日課だけを並べる */
+export function Panel({ data, now, onToggle }: Props) {
+  const [showDone, setShowDone] = useState(false);
+  const { remaining, total, groups } = overallRemaining(data, now);
+
+  const sections = GROUPS.map((g) => {
+    const tasks = tasksOf(data, g.id);
+    return { group: g, tasks, left: tasks.filter((t) => !isTaskDone(data, t, now)) };
+  }).filter((s) => s.tasks.length > 0);
+  const finished = sections.filter((s) => s.left.length === 0);
+  const doneTasks = sections.flatMap((s) => s.tasks.filter((t) => isTaskDone(data, t, now)).map((t) => ({ t, g: s.group })));
 
   return (
     <div className="panel">
       <header className="panel-head">
         <div>
-          今日の日課 <strong>{doneCount}／{games.length}</strong> 完了
+          {total === 0 ? (
+            '日課が登録されていません'
+          ) : remaining === 0 ? (
+            <strong>今日の日課はすべて完了</strong>
+          ) : (
+            <>
+              残り <strong>{remaining}件</strong>（{groups}作品）
+            </>
+          )}
         </div>
         <span className="progress" aria-hidden="true">
-          <span style={{ width: `${(doneCount / games.length) * 100}%` }} />
+          <span style={{ width: `${total ? ((total - remaining) / total) * 100 : 0}%` }} />
         </span>
       </header>
 
-      <ul className="panel-list">
-        {games.map((g) => {
-          const done = isDone(g);
-          const feed = feeds.find((f) => f.gameId === g.id);
-          const banner = currentBanners(feed, now)
-            .filter((b) => b.end)
-            .sort((a, b) => Date.parse(a.end!) - Date.parse(b.end!))[0];
-          const story = data.story[g.id];
-          return (
-            <li key={g.id}>
-              <button
-                className={`panel-row${done ? ' done' : ''}`}
-                onClick={() => onToggle(g.id, dayKey(now, g.resetHour))}
-                aria-pressed={done}
-              >
-                <GameIcon game={g} size={32} />
-                <span className="panel-text">
-                  <span className="panel-name">{g.name}</span>
-                  <span className="panel-sub">
-                    {banner?.end ? `ガチャ${remaining(banner.end, now)}` : ''}
-                    {banner && story ? '・' : ''}
-                    {story?.chapter ?? ''}
-                  </span>
-                </span>
-                <span className="check" aria-hidden="true">{done ? '✓' : ''}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="panel-list">
+        {sections
+          .filter((s) => s.left.length > 0)
+          .map(({ group, left }) => (
+            <section key={group.id}>
+              <div className="panel-group">
+                <GameIcon game={group} size={18} />
+                {group.name}
+              </div>
+              {left.map((t) => (
+                <button key={t.id} className="panel-row" onClick={() => onToggle(t)}>
+                  <span className="check" aria-hidden="true" />
+                  <span className="panel-name">{t.name}</span>
+                  {t.reset === 'weekly' && <span className="panel-sub">週</span>}
+                </button>
+              ))}
+            </section>
+          ))}
+
+        {finished.length > 0 && (
+          <div className="panel-finished">{finished.map((s) => s.group.name).join('・')} は完了</div>
+        )}
+
+        {doneTasks.length > 0 && (
+          <>
+            <button className="panel-toggle" onClick={() => setShowDone((v) => !v)}>
+              {showDone ? '▾' : '▸'} 完了済み {doneTasks.length}件（タップで戻せます）
+            </button>
+            {showDone &&
+              doneTasks.map(({ t, g }) => (
+                <button key={t.id} className="panel-row done" onClick={() => onToggle(t)}>
+                  <span className="check" aria-hidden="true">✓</span>
+                  <span className="panel-name">{t.name}</span>
+                  <span className="panel-sub">{g.name}</span>
+                </button>
+              ))}
+          </>
+        )}
+      </div>
 
       <footer className="panel-foot">
         <button onClick={openMainWindow}>全画面で開く</button>

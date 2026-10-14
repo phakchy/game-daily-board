@@ -1,4 +1,4 @@
-import type { GameDef } from '../types';
+import type { GameDef, GroupDef } from '../types';
 
 // resetHour は日本時間。アジアサーバー（UTC+8）の4時リセットは日本時間5時になる。
 // 根拠は docs/feed-verification.md。ゲーム内で一度確認する。
@@ -9,3 +9,8 @@ export const GAMES: GameDef[] = [
   { id: 'nikke', name: 'NIKKE', short: 'N', color: '#D85A30', resetHour: 5 },
   { id: 'bluearchive', name: 'ブルーアーカイブ', short: '青', color: '#378ADD', resetHour: 4 },
 ];
+
+/** ゲームに関係ない日課の枠。毎朝4時に切り替える */
+export const CUSTOM_GROUP: GroupDef = { id: 'custom', name: '自分の日課', short: '自', color: '#888780', resetHour: 4 };
+
+export const GROUPS: GroupDef[] = [...GAMES, CUSTOM_GROUP];

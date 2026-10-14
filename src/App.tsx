@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { GameId } from './types';
-import { GAMES } from './data/games';
-import { dayKey } from './lib/time';
+import type { GroupId } from './types';
+import { GAMES, GROUPS } from './data/games';
 import { useNow, useUserData } from './lib/store';
 import { useFeeds } from './lib/feeds-client';
 import { formatDateTime } from './lib/time';
+import { overallRemaining } from './lib/tasks';
 import { GameCard } from './components/GameCard';
 import { GameDetail } from './components/GameDetail';
 import { Timeline } from './components/Timeline';
@@ -28,52 +28,48 @@ function useWide(): boolean {
 export default function App() {
   const now = useNow();
   const wide = useWide();
-  const { data, toggleDaily, saveStory } = useUserData();
+  const { data, ...actions } = useUserData();
   const { feeds, generatedAt, stale } = useFeeds();
   const [view, setView] = useState<View>('home');
-  const [selected, setSelected] = useState<GameId | null>(null);
+  const [selected, setSelected] = useState<GroupId | null>(null);
 
-  const doneOf = (id: GameId) => {
-    const g = GAMES.find((x) => x.id === id)!;
-    return (data.dailies[id] ?? []).includes(dayKey(now, g.resetHour));
-  };
-  const doneCount = GAMES.filter((g) => doneOf(g.id)).length;
+  const { remaining, total, groups } = overallRemaining(data, now);
   const label = windowLabel();
 
   useEffect(() => {
-    if (label === 'main') setTrayTooltip(`今日の日課 ${doneCount}／${GAMES.length} 完了`);
-  }, [label, doneCount]);
+    if (label !== 'main') return;
+    setTrayTooltip(total === 0 ? 'ソシャゲ日課ボード' : remaining === 0 ? '今日の日課はすべて完了' : `残りの日課 ${remaining}件`);
+  }, [label, remaining, total]);
 
-  const select = (id: GameId) => {
+  const select = (id: GroupId) => {
     setSelected(id);
     if (!wide) setView('home');
   };
 
-  const selectedGame = GAMES.find((g) => g.id === selected);
-  const detail = selectedGame && (
+  const selectedGroup = GROUPS.find((g) => g.id === selected);
+  const detail = selectedGroup && (
     <GameDetail
-      game={selectedGame}
-      feed={feeds.find((f) => f.gameId === selectedGame.id)}
-      story={data.story[selectedGame.id]}
-      doneDays={data.dailies[selectedGame.id] ?? []}
+      group={selectedGroup}
+      feed={feeds.find((f) => f.gameId === selectedGroup.id)}
+      data={data}
       now={now}
-      onSaveStory={(s) => saveStory(selectedGame.id, s)}
+      actions={actions}
       onBack={wide ? undefined : () => setSelected(null)}
     />
   );
 
   const list = (
     <div className="game-list">
-      {GAMES.map((g) => (
+      {GROUPS.map((g) => (
         <GameCard
           key={g.id}
-          game={g}
+          group={g}
           feed={feeds.find((f) => f.gameId === g.id)}
-          story={data.story[g.id]}
-          done={doneOf(g.id)}
+          data={data}
           selected={wide && view === 'home' && selected === g.id}
           now={now}
-          onToggle={() => toggleDaily(g.id, dayKey(now, g.resetHour))}
+          onToggleTask={(t) => actions.toggleTask(t, now)}
+          onCompleteAll={() => actions.completeGroup(g.id, now)}
           onSelect={() => {
             setSelected(g.id);
             setView('home');
@@ -86,16 +82,25 @@ export default function App() {
   const timeline = <Timeline games={GAMES} feeds={feeds} data={data} now={now} onSelect={select} />;
 
   if (label === 'panel') {
-    return <Panel games={GAMES} feeds={feeds} data={data} now={now} onToggle={toggleDaily} />;
+    return <Panel data={data} now={now} onToggle={(t) => actions.toggleTask(t, now)} />;
   }
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="summary">
-          今日の日課 <strong>{doneCount}／{GAMES.length}</strong> 完了
+          {total === 0 ? (
+            '日課を登録しましょう'
+          ) : remaining === 0 ? (
+            <strong>日課はすべて完了</strong>
+          ) : (
+            <>
+              残りの日課 <strong>{remaining}件</strong>
+              <span className="muted small">（{groups}作品）</span>
+            </>
+          )}
           <span className="progress" aria-hidden="true">
-            <span style={{ width: `${(doneCount / GAMES.length) * 100}%` }} />
+            <span style={{ width: `${total ? ((total - remaining) / total) * 100 : 0}%` }} />
           </span>
         </div>
         <nav className="tabs">

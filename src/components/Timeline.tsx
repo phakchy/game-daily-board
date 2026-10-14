@@ -1,5 +1,7 @@
 import type { GameDef, GameFeed, UserData } from '../types';
-import { DAY, dayKey, remaining, shiftDayKey, startOfLocalDay } from '../lib/time';
+import { DAY, remaining, startOfLocalDay } from '../lib/time';
+import { dailyCompletionOn } from '../lib/tasks';
+import { wantedBanners } from '../lib/characters';
 
 interface Props {
   games: GameDef[];
@@ -45,6 +47,7 @@ export function Timeline({ games, feeds, data, now, onSelect }: Props) {
         <span><i className="sw next" />次回ガチャ</span>
         <span><i className="sw ev" />イベント</span>
         <span><i className="sw now" />今日</span>
+        <span>★ 欲しいキャラ</span>
       </div>
 
       <div className="tl-scroll">
@@ -64,6 +67,7 @@ export function Timeline({ games, feeds, data, now, onSelect }: Props) {
             const feed = feeds.find((f) => f.gameId === g.id);
             // 開始日未発表のガチャは、発表済みガチャの終了後に置く
             const lastEnd = Math.max(now.getTime(), ...(feed?.banners ?? []).filter((b) => b.end).map((b) => Date.parse(b.end!)));
+            const wanted = wantedBanners(data, g.id, feed?.banners ?? []);
             const bars = laneOut(
               (feed?.banners ?? [])
                 .map((b) => ({
@@ -95,10 +99,11 @@ export function Timeline({ games, feeds, data, now, onSelect }: Props) {
                     return (
                       <span
                         key={b.id}
-                        className={`bar ${tbd ? 'next tbd' : isCurrent ? 'cur' : s > now.getTime() ? 'next' : 'past'}`}
+                        className={`bar ${tbd ? 'next tbd' : isCurrent ? 'cur' : s > now.getTime() ? 'next' : 'past'}${wanted.has(b.id) ? ' want' : ''}`}
                         style={{ left: `${l}%`, width: `calc(${pct(e) - l}% - 2px)`, top: lane * BAR_STEP }}
                         title={`${b.name}${b.pickups.length ? `（${b.pickups.join('、')}）` : ''}`}
                       >
+                        {wanted.has(b.id) && '★ '}
                         {label}
                         {isCurrent && b.end && ` ${remaining(b.end, now)}`}
                       </span>
@@ -121,17 +126,14 @@ export function Timeline({ games, feeds, data, now, onSelect }: Props) {
             <div className="tl-label small muted">日課達成</div>
             <div className="tl-track daily-track">
               {Array.from({ length: PAST_DAYS + 1 }, (_, i) => {
-                const offset = i - PAST_DAYS;
-                const count = games.filter((g) =>
-                  (data.dailies[g.id] ?? []).includes(shiftDayKey(dayKey(now, g.resetHour), offset)),
-                ).length;
-                const level = count === games.length ? 'full' : count >= Math.ceil(games.length / 2) ? 'half' : count > 0 ? 'low' : '';
+                const { complete, groups } = dailyCompletionOn(data, now, i - PAST_DAYS);
+                const level = !groups || !complete ? '' : complete === groups ? 'full' : complete >= Math.ceil(groups / 2) ? 'half' : 'low';
                 return (
                   <span
                     key={i}
                     className={`cell ${level}`}
                     style={{ left: `${pct(from + i * DAY)}%`, width: `calc(${100 / TOTAL_DAYS}% - 3px)` }}
-                    title={`${count}/${games.length}`}
+                    title={`${complete}/${groups}`}
                   />
                 );
               })}
