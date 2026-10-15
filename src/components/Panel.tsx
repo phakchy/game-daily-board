@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { ResetKind, TaskDef, UserData } from '../types';
 import { GAMES } from '../data/games';
 import { isTaskDone, KIND_LABEL, overallRemaining, tasksOf } from '../lib/tasks';
-import { openMainWindow } from '../lib/desktop';
+import { hidePanel, isDesktop, openMainWindow } from '../lib/desktop';
+import { RemainingSummaryView } from './ProgressBars';
 import { GameIcon } from './GameCard';
 
 interface Props {
@@ -16,8 +17,6 @@ export function Panel({ data, now, onToggle }: Props) {
   const [showDone, setShowDone] = useState(false);
   const daily = overallRemaining(data, now, 'daily');
   const weekly = overallRemaining(data, now, 'weekly');
-  const total = daily.total + weekly.total;
-  const remaining = daily.remaining + weekly.remaining;
 
   const doneTasks = GAMES.flatMap((g) => tasksOf(data, g.id).filter((t) => isTaskDone(data, t, now)).map((t) => ({ t, g })));
 
@@ -25,20 +24,13 @@ export function Panel({ data, now, onToggle }: Props) {
     <div className="panel">
       <header className="panel-head">
         <div className="panel-summary">
-          {total === 0 ? (
-            '日課が登録されていません'
-          ) : remaining === 0 ? (
-            <strong>すべて完了</strong>
-          ) : (
-            <>
-              <span>日課 残り <strong>{daily.remaining}</strong></span>
-              <span>週課 残り <strong>{weekly.remaining}</strong></span>
-            </>
-          )}
+          <RemainingSummaryView daily={daily} weekly={weekly} />
         </div>
-        <span className="progress" aria-hidden="true">
-          <span style={{ width: `${total ? ((total - remaining) / total) * 100 : 0}%` }} />
-        </span>
+        {isDesktop && (
+          <button className="panel-close" onClick={hidePanel} aria-label="閉じる" title="閉じる">
+            ×
+          </button>
+        )}
       </header>
 
       <div className="panel-list">

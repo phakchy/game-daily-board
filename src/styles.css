@@ -231,3 +231,13 @@ button.tl-label:hover { color: var(--accent); }
 .panel-summary { display: flex; gap: 16px; }
 .panel-kind + .panel-kind { border-top: 1px solid var(--border); margin-top: 6px; }
 .panel-kind-head { font-size: 13px; font-weight: 600; padding: 8px 14px 0; }
+
+/* 日課・週課それぞれの進み具合 */
+.remaining-summary { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; }
+.remaining-part { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.remaining-part .progress { width: 72px; }
+.progress.weekly span { background: var(--accent); }
+.done-text { color: var(--done); }
+.panel-head { position: relative; padding-right: 40px; }
+.panel-close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-size: 18px; line-height: 1; }
+.panel-close:hover { background: var(--bg); color: var(--text); }

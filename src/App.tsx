@@ -5,6 +5,8 @@ import { useNow, useUserData } from './lib/store';
 import { useFeeds } from './lib/feeds-client';
 import { formatDateTime } from './lib/time';
 import { overallRemaining } from './lib/tasks';
+import { useDesktopReminders } from './lib/reminder';
+import { RemainingSummaryView } from './components/ProgressBars';
 import { GameCard } from './components/GameCard';
 import { GameDetail } from './components/GameDetail';
 import { Timeline } from './components/Timeline';
@@ -38,6 +40,7 @@ export default function App() {
   const total = daily.total + weekly.total;
   const remaining = daily.remaining + weekly.remaining;
   const label = windowLabel();
+  useDesktopReminders(label === 'main', remaining);
 
   useEffect(() => {
     if (label !== 'main') return;
@@ -94,20 +97,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="summary">
-          {total === 0 ? (
-            '日課を登録しましょう'
-          ) : remaining === 0 ? (
-            <strong>日課・週課はすべて完了</strong>
-          ) : (
-            <>
-              日課 残り <strong>{daily.remaining}</strong>
-              <span className="sep">／</span>
-              週課 残り <strong>{weekly.remaining}</strong>
-            </>
-          )}
-          <span className="progress" aria-hidden="true">
-            <span style={{ width: `${total ? ((total - remaining) / total) * 100 : 0}%` }} />
-          </span>
+          <RemainingSummaryView daily={daily} weekly={weekly} />
         </div>
         <nav className="tabs">
           <button className={view === 'home' ? 'active' : ''} onClick={() => { setView('home'); if (!wide) setSelected(null); }}>ホーム</button>

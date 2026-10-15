@@ -18,3 +18,22 @@ export function openMainWindow(): void {
 export function setTrayTooltip(text: string): void {
   if (isDesktop) void invoke('set_tray_tooltip', { text });
 }
+
+/** トレイアイコンの赤い点（残りの日課があるとき） */
+export function setTrayAlert(on: boolean): void {
+  if (isDesktop) void invoke('set_tray_alert', { on });
+}
+
+/** 自動起動されたときに1回だけ true */
+export async function takeStartupReminder(): Promise<boolean> {
+  return isDesktop ? invoke<boolean>('take_startup_reminder') : false;
+}
+
+/** パネルを右下に出したままにする（起動時・スリープ復帰時のお知らせ） */
+export function showReminderPanel(): void {
+  if (isDesktop) void invoke('show_reminder_panel');
+}
+
+export function hidePanel(): void {
+  if (isDesktop) void invoke('hide_panel');
+}
