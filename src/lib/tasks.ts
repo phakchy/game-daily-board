@@ -1,9 +1,9 @@
-import type { GroupId, TaskDef, UserData } from '../types';
-import { GROUPS } from '../data/games';
+import type { GameId, ResetKind, TaskDef, UserData } from '../types';
+import { GAMES } from '../data/games';
 import { dayKey, shiftDayKey } from './time';
 
-export function resetHourOf(group: GroupId): number {
-  return GROUPS.find((g) => g.id === group)?.resetHour ?? 4;
+export function resetHourOf(group: GameId): number {
+  return GAMES.find((g) => g.id === group)?.resetHour ?? 4;
 }
 
 /**
@@ -21,24 +21,34 @@ export function isTaskDone(data: UserData, task: TaskDef, now: Date): boolean {
   return (data.done[task.id] ?? []).includes(periodKey(task, now));
 }
 
-export function tasksOf(data: UserData, group: GroupId): TaskDef[] {
-  return data.tasks.filter((t) => t.group === group);
+/** そのゲームの日課（kind を指定すると日課だけ／週課だけ） */
+export function tasksOf(data: UserData, group: GameId, kind?: ResetKind): TaskDef[] {
+  return data.tasks.filter((t) => t.group === group && (!kind || t.reset === kind));
 }
 
-export function remainingTasks(data: UserData, group: GroupId, now: Date): TaskDef[] {
-  return tasksOf(data, group).filter((t) => !isTaskDone(data, t, now));
+export function remainingTasks(data: UserData, group: GameId, now: Date, kind?: ResetKind): TaskDef[] {
+  return tasksOf(data, group, kind).filter((t) => !isTaskDone(data, t, now));
 }
 
-/** 全体の残り件数と、残りがある枠の数 */
-export function overallRemaining(data: UserData, now: Date): { remaining: number; total: number; groups: number } {
+export interface RemainingSummary {
+  remaining: number;
+  total: number;
+  /** 残りがあるゲームの数 */
+  games: number;
+}
+
+/** 全体の残り件数（kind を指定すると日課だけ／週課だけ） */
+export function overallRemaining(data: UserData, now: Date, kind?: ResetKind): RemainingSummary {
   let remaining = 0;
-  let groups = 0;
-  for (const g of GROUPS) {
-    const r = remainingTasks(data, g.id, now).length;
+  let total = 0;
+  let games = 0;
+  for (const g of GAMES) {
+    const r = remainingTasks(data, g.id, now, kind).length;
     remaining += r;
-    if (r > 0) groups++;
+    total += tasksOf(data, g.id, kind).length;
+    if (r > 0) games++;
   }
-  return { remaining, total: data.tasks.length, groups };
+  return { remaining, total, games };
 }
 
 /**
@@ -48,8 +58,8 @@ export function overallRemaining(data: UserData, now: Date): { remaining: number
 export function dailyCompletionOn(data: UserData, now: Date, offsetDays: number): { complete: number; groups: number } {
   let complete = 0;
   let groups = 0;
-  for (const g of GROUPS) {
-    const daily = tasksOf(data, g.id).filter((t) => t.reset === 'daily');
+  for (const g of GAMES) {
+    const daily = tasksOf(data, g.id, 'daily');
     if (daily.length === 0) continue;
     groups++;
     const day = shiftDayKey(dayKey(now, g.resetHour), offsetDays);
@@ -58,4 +68,6 @@ export function dailyCompletionOn(data: UserData, now: Date, offsetDays: number)
   return { complete, groups };
 }
 
-export const RESET_LABEL: Record<TaskDef['reset'], string> = { daily: '毎日', weekly: '毎週' };
+export const RESET_LABEL: Record<ResetKind, string> = { daily: '毎日', weekly: '毎週' };
+/** 画面の見出し */
+export const KIND_LABEL: Record<ResetKind, string> = { daily: '日課', weekly: '週課' };

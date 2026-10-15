@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { GroupId } from './types';
-import { GAMES, GROUPS } from './data/games';
+import type { GameId } from './types';
+import { GAMES } from './data/games';
 import { useNow, useUserData } from './lib/store';
 import { useFeeds } from './lib/feeds-client';
 import { formatDateTime } from './lib/time';
@@ -31,26 +31,31 @@ export default function App() {
   const { data, ...actions } = useUserData();
   const { feeds, generatedAt, stale } = useFeeds();
   const [view, setView] = useState<View>('home');
-  const [selected, setSelected] = useState<GroupId | null>(null);
+  const [selected, setSelected] = useState<GameId | null>(null);
 
-  const { remaining, total, groups } = overallRemaining(data, now);
+  const daily = overallRemaining(data, now, 'daily');
+  const weekly = overallRemaining(data, now, 'weekly');
+  const total = daily.total + weekly.total;
+  const remaining = daily.remaining + weekly.remaining;
   const label = windowLabel();
 
   useEffect(() => {
     if (label !== 'main') return;
-    setTrayTooltip(total === 0 ? 'ソシャゲ日課ボード' : remaining === 0 ? '今日の日課はすべて完了' : `残りの日課 ${remaining}件`);
-  }, [label, remaining, total]);
+    setTrayTooltip(
+      total === 0 ? 'ソシャゲ日課ボード' : remaining === 0 ? '日課・週課はすべて完了' : `日課 残り${daily.remaining}・週課 残り${weekly.remaining}`,
+    );
+  }, [label, remaining, total, daily.remaining, weekly.remaining]);
 
-  const select = (id: GroupId) => {
+  const select = (id: GameId) => {
     setSelected(id);
     if (!wide) setView('home');
   };
 
-  const selectedGroup = GROUPS.find((g) => g.id === selected);
-  const detail = selectedGroup && (
+  const selectedGame = GAMES.find((g) => g.id === selected);
+  const detail = selectedGame && (
     <GameDetail
-      group={selectedGroup}
-      feed={feeds.find((f) => f.gameId === selectedGroup.id)}
+      game={selectedGame}
+      feed={feeds.find((f) => f.gameId === selectedGame.id)}
       data={data}
       now={now}
       actions={actions}
@@ -60,16 +65,16 @@ export default function App() {
 
   const list = (
     <div className="game-list">
-      {GROUPS.map((g) => (
+      {GAMES.map((g) => (
         <GameCard
           key={g.id}
-          group={g}
+          game={g}
           feed={feeds.find((f) => f.gameId === g.id)}
           data={data}
           selected={wide && view === 'home' && selected === g.id}
           now={now}
           onToggleTask={(t) => actions.toggleTask(t, now)}
-          onCompleteAll={() => actions.completeGroup(g.id, now)}
+          onCompleteAll={(kind) => actions.completeGroup(g.id, now, kind)}
           onSelect={() => {
             setSelected(g.id);
             setView('home');
@@ -92,11 +97,12 @@ export default function App() {
           {total === 0 ? (
             '日課を登録しましょう'
           ) : remaining === 0 ? (
-            <strong>日課はすべて完了</strong>
+            <strong>日課・週課はすべて完了</strong>
           ) : (
             <>
-              残りの日課 <strong>{remaining}件</strong>
-              <span className="muted small">（{groups}作品）</span>
+              日課 残り <strong>{daily.remaining}</strong>
+              <span className="sep">／</span>
+              週課 残り <strong>{weekly.remaining}</strong>
             </>
           )}
           <span className="progress" aria-hidden="true">

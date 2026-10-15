@@ -1,4 +1,4 @@
-import type { GroupId, ResetKind } from '../types';
+import type { GameId, ResetKind } from '../types';
 
 export interface TaskPreset {
   name: string;
@@ -8,7 +8,7 @@ export interface TaskPreset {
 }
 
 // よくある日課の候補。ゲーム内の呼び方と違うものは、アプリの中で名前を変えられる。
-export const PRESETS: Record<GroupId, TaskPreset[]> = {
+export const PRESETS: Record<GameId, TaskPreset[]> = {
   wuwa: [
     { name: '結晶ソル消費', reset: 'daily', initial: true },
     { name: 'デイリー任務', reset: 'daily', initial: true },
@@ -39,5 +39,4 @@ export const PRESETS: Record<GroupId, TaskPreset[]> = {
     { name: 'カフェ（タッチ・招待）', reset: 'daily' },
     { name: '戦術対抗戦', reset: 'daily' },
   ],
-  custom: [],
 };

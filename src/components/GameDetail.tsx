@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Banner, GameFeed, GameId, GroupDef, UserData } from '../types';
+import type { Banner, GameDef, GameFeed, GameId, UserData } from '../types';
 import { currentBanners, feedStatusLabel, formatStart, upcomingBanners, versionLabel } from '../lib/feed';
 import { dayKey, formatDateTime, remaining, shiftDayKey } from '../lib/time';
 import { tasksOf } from '../lib/tasks';
@@ -11,7 +11,7 @@ import { TaskEditor } from './TaskEditor';
 import { CharacterEditor } from './CharacterEditor';
 
 interface Props {
-  group: GroupDef;
+  game: GameDef;
   feed?: GameFeed;
   data: UserData;
   now: Date;
@@ -19,11 +19,9 @@ interface Props {
   onBack?: () => void;
 }
 
-export function GameDetail({ group, feed, data, now, actions, onBack }: Props) {
-  const gameId = group.id === 'custom' ? null : group.id;
-
-  const today = dayKey(now, group.resetHour);
-  const daily = tasksOf(data, group.id).filter((t) => t.reset === 'daily');
+export function GameDetail({ game, feed, data, now, actions, onBack }: Props) {
+  const today = dayKey(now, game.resetHour);
+  const daily = tasksOf(data, game.id, 'daily');
   const history = Array.from({ length: 14 }, (_, i) => shiftDayKey(today, i - 13)).map((d) => ({
     day: d,
     done: daily.length > 0 && daily.every((t) => (data.done[t.id] ?? []).includes(d)),
@@ -37,17 +35,16 @@ export function GameDetail({ group, feed, data, now, actions, onBack }: Props) {
         </button>
       )}
       <header className="detail-head">
-        <GameIcon game={group} size={48} />
+        <GameIcon game={game} size={48} />
         <div>
-          <h2>{group.name}</h2>
+          <h2>{game.name}</h2>
           <div className="muted small">
-            {gameId && `${versionLabel(feed)}・`}日課リセット {group.resetHour}:00（毎週は月曜）
+            {versionLabel(feed)}・リセット {game.resetHour}:00（週課は月曜）
           </div>
         </div>
       </header>
 
-      {gameId && (
-        <>
+      <>
           <div className={`feed-status${feed?.status === 'error' ? ' error' : ''}`}>
             {feedStatusLabel(feed)}
             {feed?.fetchedAt && `・最終取得 ${formatDateTime(feed.fetchedAt)}`}
@@ -60,23 +57,17 @@ export function GameDetail({ group, feed, data, now, actions, onBack }: Props) {
           {feed?.messages?.map((m) => (
             <div key={m} className="feed-message">{m}</div>
           ))}
-        </>
-      )}
+      </>
 
-      <h3>日課</h3>
-      <TaskEditor group={group.id} data={data} now={now} actions={actions} />
+      <TaskEditor group={game.id} data={data} now={now} actions={actions} />
 
-      {gameId && (
-        <>
-          <h3>ストーリー進捗</h3>
-          <StoryForm gameId={gameId} data={data} actions={actions} />
+      <h3>ストーリー進捗</h3>
+      <StoryForm gameId={game.id} data={data} actions={actions} />
 
-          <h3>育成キャラ</h3>
-          <CharacterEditor gameId={gameId} feed={feed} data={data} actions={actions} />
+      <h3>育成キャラ</h3>
+      <CharacterEditor gameId={game.id} feed={feed} data={data} actions={actions} />
 
-          <GachaAndEvents gameId={gameId} feed={feed} data={data} now={now} />
-        </>
-      )}
+      <GachaAndEvents gameId={game.id} feed={feed} data={data} now={now} />
 
       <h3>日課の記録（14日間・毎日の日課をすべて終えた日）</h3>
       <div className="history" role="list">

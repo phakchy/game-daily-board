@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Character, GameId, GroupId, ResetKind, StoryProgress, TaskDef, UserData } from '../types';
+import type { Character, GameId, ResetKind, StoryProgress, TaskDef, UserData } from '../types';
 import { PRESETS } from '../data/presets';
+import { GAMES } from '../data/games';
 import { periodKey, remainingTasks } from './tasks';
 import { shiftDayKey } from './time';
 
@@ -22,7 +23,7 @@ function initialData(): UserData {
     // 前のデータが読めなければ空から始める
   }
   const tasks: TaskDef[] = Object.entries(PRESETS).flatMap(([group, presets]) =>
-    presets.filter((p) => p.initial).map((p) => ({ id: newId(), group: group as GroupId, name: p.name, reset: p.reset })),
+    presets.filter((p) => p.initial).map((p) => ({ id: newId(), group: group as GameId, name: p.name, reset: p.reset })),
   );
   return { tasks, done: {}, story, characters: [] };
 }
@@ -33,7 +34,8 @@ function load(): UserData {
     if (raw) {
       const d = JSON.parse(raw) as Partial<UserData>;
       return {
-        tasks: Array.isArray(d.tasks) ? d.tasks : [],
+        // 以前あった「自分の日課」など、今のゲーム一覧にない枠の日課は読み込まない
+        tasks: Array.isArray(d.tasks) ? d.tasks.filter((t) => GAMES.some((g) => g.id === t.group)) : [],
         done: d.done && typeof d.done === 'object' ? d.done : {},
         story: d.story && typeof d.story === 'object' ? d.story : {},
         characters: Array.isArray(d.characters) ? d.characters : [],
@@ -87,16 +89,16 @@ export function useUserData() {
     });
   }, []);
 
-  /** その枠の残りを全部完了にする */
-  const completeGroup = useCallback((group: GroupId, now: Date) => {
+  /** そのゲームの残りの日課（kind を指定すると日課だけ／週課だけ）を全部完了にする */
+  const completeGroup = useCallback((group: GameId, now: Date, kind?: ResetKind) => {
     setData((d) => {
       const done = { ...d.done };
-      for (const t of remainingTasks(d, group, now)) done[t.id] = [...(done[t.id] ?? []), periodKey(t, now)];
+      for (const t of remainingTasks(d, group, now, kind)) done[t.id] = [...(done[t.id] ?? []), periodKey(t, now)];
       return { ...d, done: prune(done, d.tasks) };
     });
   }, []);
 
-  const addTask = useCallback((group: GroupId, name: string, reset: ResetKind) => {
+  const addTask = useCallback((group: GameId, name: string, reset: ResetKind) => {
     const trimmed = name.trim().slice(0, 40);
     if (!trimmed) return;
     setData((d) => ({ ...d, tasks: [...d.tasks, { id: newId(), group, name: trimmed, reset }] }));
@@ -113,12 +115,12 @@ export function useUserData() {
     });
   }, []);
 
-  /** 同じ枠の中で1つ上（-1）または下（+1）に動かす */
+  /** 同じゲームの、日課なら日課・週課なら週課の中で1つ上（-1）または下（+1）に動かす */
   const moveTask = useCallback((id: string, dir: -1 | 1) => {
     setData((d) => {
       const task = d.tasks.find((t) => t.id === id);
       if (!task) return d;
-      const same = d.tasks.filter((t) => t.group === task.group);
+      const same = d.tasks.filter((t) => t.group === task.group && t.reset === task.reset);
       const i = same.indexOf(task);
       const j = i + dir;
       if (j < 0 || j >= same.length) return d;

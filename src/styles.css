@@ -216,3 +216,18 @@ button.tl-label:hover { color: var(--accent); }
 .panel-group .game-icon { border-radius: 5px; }
 .panel-finished { font-size: 12px; color: var(--done); padding: 8px 14px; }
 .panel-toggle { width: 100%; text-align: left; border: 0; border-top: 1px solid var(--border); background: none; color: var(--muted); font-size: 12px; padding: 8px 14px; margin-top: 4px; }
+
+/* 日課と週課を分けて表示 */
+.summary .sep { color: var(--muted); margin: 0 4px; }
+.tasks-left { padding-top: 8px; }
+.task-row { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; }
+.task-row + .task-row { border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px; }
+.task-row .chips { margin-top: 0; flex: 1; }
+.task-kind { flex-shrink: 0; width: 5.2em; font-size: 12px; color: var(--muted); padding-top: 5px; }
+.task-row.weekly .task-kind { color: var(--accent); }
+.task-row-done { font-size: 13px; color: var(--done); padding-top: 3px; }
+.task-row .complete-all { margin-top: 0; padding: 4px 4px; }
+.task-editor h3 .muted { font-weight: 400; margin-left: 4px; }
+.panel-summary { display: flex; gap: 16px; }
+.panel-kind + .panel-kind { border-top: 1px solid var(--border); margin-top: 6px; }
+.panel-kind-head { font-size: 13px; font-weight: 600; padding: 8px 14px 0; }

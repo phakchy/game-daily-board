@@ -1,21 +1,21 @@
-import type { GroupDef, GameFeed, TaskDef, UserData } from '../types';
+import type { GameDef, GameFeed, ResetKind, TaskDef, UserData } from '../types';
 import { currentBanners, formatStart, upcomingBanners, versionLabel } from '../lib/feed';
 import { remaining } from '../lib/time';
-import { isTaskDone, tasksOf } from '../lib/tasks';
+import { isTaskDone, KIND_LABEL, tasksOf } from '../lib/tasks';
 import { charactersOf, wantedBanners } from '../lib/characters';
 
 interface Props {
-  group: GroupDef;
+  game: GameDef;
   feed?: GameFeed;
   data: UserData;
   selected: boolean;
   now: Date;
   onToggleTask: (task: TaskDef) => void;
-  onCompleteAll: () => void;
+  onCompleteAll: (kind: ResetKind) => void;
   onSelect: () => void;
 }
 
-export function GameIcon({ game, size = 40 }: { game: Pick<GroupDef, 'color' | 'short'>; size?: number }) {
+export function GameIcon({ game, size = 40 }: { game: Pick<GameDef, 'color' | 'short'>; size?: number }) {
   return (
     <span className="game-icon" style={{ background: game.color, width: size, height: size, fontSize: size * 0.45 }}>
       {game.short}
@@ -23,64 +23,53 @@ export function GameIcon({ game, size = 40 }: { game: Pick<GroupDef, 'color' | '
   );
 }
 
-export function GameCard({ group, feed, data, selected, now, onToggleTask, onCompleteAll, onSelect }: Props) {
-  const isGame = group.id !== 'custom';
-  const tasks = tasksOf(data, group.id);
-  const left = tasks.filter((t) => !isTaskDone(data, t, now));
-  const allDone = tasks.length > 0 && left.length === 0;
+export function GameCard({ game, feed, data, selected, now, onToggleTask, onCompleteAll, onSelect }: Props) {
+  const tasks = tasksOf(data, game.id);
+  const allDone = tasks.length > 0 && tasks.every((t) => isTaskDone(data, t, now));
 
   // 終了が近いものを代表にして、残りは件数だけ出す
   const currents = currentBanners(feed, now).sort((a, b) => Date.parse(a.end ?? '9999') - Date.parse(b.end ?? '9999'));
   const current = currents[0];
   const next = upcomingBanners(feed, now)[0];
-  const story = group.id !== 'custom' ? data.story[group.id] : undefined;
-  const characters = group.id !== 'custom' ? charactersOf(data, group.id).filter((c) => c.status !== 'done') : [];
-  const wantedNow = group.id !== 'custom' ? wantedBanners(data, group.id, currents) : new Map();
-  const wantedIds = new Set([...wantedNow.values()].flat().map((c) => c.id));
+  const story = data.story[game.id];
+  const characters = charactersOf(data, game.id).filter((c) => c.status !== 'done');
+  const wantedIds = new Set([...wantedBanners(data, game.id, currents).values()].flat().map((c) => c.id));
 
   return (
     <article className={`card game-card${selected ? ' selected' : ''}${allDone ? ' all-done' : ''}`}>
-      <button className="card-main" onClick={onSelect} aria-label={`${group.name}の詳細を開く`}>
+      <button className="card-main" onClick={onSelect} aria-label={`${game.name}の詳細を開く`}>
         <div className="card-head">
-          <GameIcon game={group} />
+          <GameIcon game={game} />
           <div className="card-title">
-            <div className="game-name">{group.name}</div>
-            {isGame && (
-              <div className="muted small">
-                {versionLabel(feed)}
-                {feed?.status === 'error' && <span className="warn-text"> ・更新に失敗</span>}
-              </div>
-            )}
+            <div className="game-name">{game.name}</div>
+            <div className="muted small">
+              {versionLabel(feed)}
+              {feed?.status === 'error' && <span className="warn-text"> ・更新に失敗</span>}
+            </div>
           </div>
-          {tasks.length > 0 && (
-            <span className={`progress-count${allDone ? ' done' : ''}`}>
-              {allDone ? '✓ 完了' : `${tasks.length - left.length}/${tasks.length}`}
-            </span>
-          )}
+          {allDone && <span className="progress-count done">✓ 完了</span>}
         </div>
 
-        {isGame && (
-          <dl className="facts">
-            <dt>ストーリー</dt>
-            <dd>{story ? `${story.chapter}　${story.memo}` : <span className="muted">未記録</span>}</dd>
-            <dt>開催中</dt>
-            <dd>
-              {current ? (
-                <>
-                  {current.pickups[0] ?? current.name}
-                  {current.end && <span className="badge">{remaining(current.end, now)}</span>}
-                  {currents.length > 1 && <span className="muted"> ほか{currents.length - 1}件</span>}
-                </>
-              ) : (
-                <span className="muted">なし</span>
-              )}
-            </dd>
-            <dt>次回</dt>
-            <dd>
-              {next?.start ? `${next.pickups[0] ?? next.name}　${formatStart(next)}〜` : <span className="muted">未発表</span>}
-            </dd>
-          </dl>
-        )}
+        <dl className="facts">
+          <dt>ストーリー</dt>
+          <dd>{story ? `${story.chapter}　${story.memo}` : <span className="muted">未記録</span>}</dd>
+          <dt>開催中</dt>
+          <dd>
+            {current ? (
+              <>
+                {current.pickups[0] ?? current.name}
+                {current.end && <span className="badge">{remaining(current.end, now)}</span>}
+                {currents.length > 1 && <span className="muted"> ほか{currents.length - 1}件</span>}
+              </>
+            ) : (
+              <span className="muted">なし</span>
+            )}
+          </dd>
+          <dt>次回</dt>
+          <dd>
+            {next?.start ? `${next.pickups[0] ?? next.name}　${formatStart(next)}〜` : <span className="muted">未発表</span>}
+          </dd>
+        </dl>
 
         {characters.length > 0 && (
           <div className="chips">
@@ -99,24 +88,64 @@ export function GameCard({ group, feed, data, selected, now, onToggleTask, onCom
         <button className="tasks-empty" onClick={onSelect}>
           日課を登録する
         </button>
-      ) : left.length > 0 ? (
-        <div className="tasks-left">
-          <div className="chips">
-            {left.map((t) => (
-              <button key={t.id} className="chip task" onClick={() => onToggleTask(t)} title="完了にする">
-                <span className="box" aria-hidden="true" />
-                {t.name}
-                {t.reset === 'weekly' && <span className="muted"> 週</span>}
-              </button>
+      ) : (
+        !allDone && (
+          <div className="tasks-left">
+            {(['daily', 'weekly'] as const).map((kind) => (
+              <TaskRow
+                key={kind}
+                kind={kind}
+                tasks={tasksOf(data, game.id, kind)}
+                isDone={(t) => isTaskDone(data, t, now)}
+                onToggle={onToggleTask}
+                onCompleteAll={() => onCompleteAll(kind)}
+              />
             ))}
           </div>
+        )
+      )}
+    </article>
+  );
+}
+
+/** 「日課 1/2 [□ 結晶ソル消費] 全部完了」の1行 */
+function TaskRow({
+  kind,
+  tasks,
+  isDone,
+  onToggle,
+  onCompleteAll,
+}: {
+  kind: ResetKind;
+  tasks: TaskDef[];
+  isDone: (t: TaskDef) => boolean;
+  onToggle: (t: TaskDef) => void;
+  onCompleteAll: () => void;
+}) {
+  if (tasks.length === 0) return null;
+  const left = tasks.filter((t) => !isDone(t));
+  return (
+    <div className={`task-row ${kind}`}>
+      <span className="task-kind">
+        {KIND_LABEL[kind]} {tasks.length - left.length}/{tasks.length}
+      </span>
+      {left.length === 0 ? (
+        <span className="task-row-done">✓ 完了</span>
+      ) : (
+        <div className="chips">
+          {left.map((t) => (
+            <button key={t.id} className="chip task" onClick={() => onToggle(t)} title="完了にする">
+              <span className="box" aria-hidden="true" />
+              {t.name}
+            </button>
+          ))}
           {left.length > 1 && (
             <button className="complete-all" onClick={onCompleteAll}>
-              残りを全部完了
+              全部完了
             </button>
           )}
         </div>
-      ) : null}
-    </article>
+      )}
+    </div>
   );
 }

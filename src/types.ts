@@ -66,19 +66,12 @@ export interface StoryProgress {
   updatedAt: string;
 }
 
-/** 日課の区分。ゲームごとの枠と、ゲームに関係ない「自分の日課」 */
-export type GroupId = GameId | 'custom';
-
-/** 一覧に並べる枠（ゲーム、または「自分の日課」） */
-export interface GroupDef extends Omit<GameDef, 'id'> {
-  id: GroupId;
-}
-
 export type ResetKind = 'daily' | 'weekly';
 
 export interface TaskDef {
   id: string;
-  group: GroupId;
+  /** どのゲームの日課か */
+  group: GameId;
   name: string;
   reset: ResetKind;
 }
